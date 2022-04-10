@@ -6,77 +6,9 @@
 #include <algorithm>
 #include <wex.h>
 
+#include "cCrossWord.h"
+
 // https://github.com/AyeshJayasekara/English-Dictionary-SQLite
-
-class cWord
-{
-public:
-    int myIndex;
-    bool myfVertical;
-    std::string myText;
-    std::string myClue;
-    int myClueNo;
-
-    cWord()
-    {
-    }
-
-    cWord(
-        const std::string &line,
-        const std::string &clueline);
-
-    void save(std::ofstream &f)
-    {
-        f << myIndex << " "
-          << myfVertical << " "
-          << myText << "\n"
-          << myClue << "\n";
-    }
-};
-
-class cCrossWord
-{
-public:
-    int myDimension;
-    std::vector<int> myBlack;
-    std::vector<cWord> myWord;
-    std::vector<char> myContents;
-
-    cCrossWord()
-        : myDimension(9), mySelected(-1)
-    {
-        myContents.resize(myDimension * myDimension, ' ');
-    }
-    void clear();
-
-    void draw(PAINTSTRUCT &ps);
-    std::string textClues();
-
-    void add(const cWord &word);
-
-    void select(int i);
-    int select() const
-    {
-        return mySelected;
-    }
-
-    void save(const std::string &fname);
-    void read(const std::string &fname);
-
-    cWord &findWord(int i, bool vert = false);
-
-    std::pair<int, int> index2colrow(int i);
-    int colrow2index(std::pair<int, int> colrow);
-    int mouse2index(wex::sMouse m);
-
-private:
-    int xinc;
-    int yinc;
-    int mySelected;
-
-    void AssignClueNumber();
-
-};
 
 cCrossWord theCrossWord;
 
@@ -117,6 +49,7 @@ void cCrossWord::clear()
 {
     myBlack.clear();
     myWord.clear();
+    mySuggestions.clear();
     mySelected = -1;
 }
 
@@ -225,7 +158,6 @@ void cCrossWord::draw(PAINTSTRUCT &ps)
         y1 = 21 + colrow.second * yinc;
         S.rectangle({x1, y1, xinc - 1, yinc - 1});
     }
-
 }
 
 std::pair<int, int> cCrossWord::index2colrow(int i)
@@ -273,6 +205,15 @@ void cCrossWord::add(const cWord &word)
     // myContents[i] = '*';
 }
 
+void cCrossWord::addSuggestion(const cWord &word)
+{
+    mySuggestions.push_back(word);
+}
+cWord& cCrossWord::suggestion( int i )
+{
+    return mySuggestions[i];
+}
+
 void cCrossWord::save(const std::string &fname)
 {
     std::ofstream f(fname);
@@ -280,17 +221,31 @@ void cCrossWord::save(const std::string &fname)
     {
         w.save(f);
     }
+    f << "CWSUGGESTIONS\n";
+    for (auto &w : mySuggestions)
+    {
+        w.save(f);
+    }
 }
 void cCrossWord::read(const std::string &fname)
 {
     clear();
+    bool fSugs = false;
     std::ifstream f(fname);
     std::string line, clueline;
     while (getline(f, line))
     {
+        if (line == "CWSUGGESTIONS")
+        {
+            fSugs = true;
+            continue;
+        }
         getline(f, clueline);
         cWord word(line, clueline);
-        add(word);
+        if (!fSugs)
+            add(word);
+        else
+            addSuggestion(word);
     }
 }
 
@@ -324,13 +279,88 @@ std::string cCrossWord::textClues()
     return ss.str();
 }
 
+void cCrossWord::listSuggestions(wex::list &lsSugs)
+{
+    for (auto &w : mySuggestions)
+    {
+        lsSugs.add(w.myText);
+    }
+    lsSugs.update();
+}
+
 class cGUI
 {
 public:
-    void ConstructMenu(wex::gui &fm);
+    cGUI();
+
+private:
+    wex::gui &fm;
+    wex::tabbed &tabs;
+    wex::panel &plEdit;
+    wex::panel &plSug;
+    wex::editbox &wordbox;
+    wex::button &bnAdd;
+    wex::radiobutton &bnHoriz;
+    wex::radiobutton &bnVert;
+    wex::editbox &cluebox;
+    wex::label &lbClues;
+    wex::editbox &sgwordbox;
+    wex::button &bnsgAdd;
+    wex::editbox &sgcluebox;
+    wex::list &lsSugs;
+
+    void ConstructMenu();
+    void RegisterEventHandlers();
 };
 
-void ConstructMenu(wex::gui &fm)
+cGUI::cGUI()
+    : fm(wex::maker::make()), tabs(wex::maker::make<wex::tabbed>(fm)), plEdit(wex::maker::make<wex::panel>(tabs)), plSug(wex::maker::make<wex::panel>(tabs))
+
+      ,
+      wordbox(wex::maker::make<wex::editbox>(plEdit)), bnAdd(wex::maker::make<wex::button>(plEdit)), bnHoriz(wex::maker::make<wex::radiobutton>(plEdit)), bnVert(wex::maker::make<wex::radiobutton>(plEdit)), cluebox(wex::maker::make<wex::editbox>(plEdit)), lbClues(wex::maker::make<wex::label>(plEdit))
+
+      ,
+      sgwordbox(wex::maker::make<wex::editbox>(plSug)), bnsgAdd(wex::maker::make<wex::button>(plSug)), sgcluebox(wex::maker::make<wex::editbox>(plSug)), lsSugs(wex::maker::make<wex::list>(plSug))
+{
+    fm.move({50, 50, 1000, 500});
+    fm.text("Crossify");
+
+    ConstructMenu();
+
+    tabs.move(500, 20, 500, 450);
+    tabs.tabWidth(200);
+    tabs.add("EDIT", plEdit);
+    tabs.add("SUGGESTIONS", plSug);
+
+    wordbox.move(100, 30, 300, 30);
+    wordbox.text("");
+    bnAdd.move(100, 70, 50, 30);
+    bnAdd.text("ADD");
+    bnHoriz.move(160, 70, 50, 30);
+    bnHoriz.text("Horiz");
+    bnVert.move(240, 70, 50, 30);
+    bnVert.text("Vert");
+    cluebox.move(100, 130, 300, 30);
+    cluebox.text("");
+    lbClues.move(50, 200, 400, 350);
+
+    sgwordbox.move(100, 30, 300, 30);
+    sgwordbox.text("");
+    bnsgAdd.move(100, 70, 50, 30);
+    bnsgAdd.text("ADD");
+    sgcluebox.move(100, 130, 300, 30);
+    sgcluebox.text("");
+    lsSugs.move(50, 200, 400, 300);
+
+    RegisterEventHandlers();
+
+    // show and run
+    fm.show();
+    tabs.select(0);
+    fm.run();
+}
+
+void cGUI::ConstructMenu()
 {
     wex::menubar mb(fm);
     wex::menu m(fm);
@@ -346,42 +376,16 @@ void ConstructMenu(wex::gui &fm)
              { 
                  wex::filebox fb(fm);
                  auto fname = fb.open();
-                 theCrossWord.read( fname ); });
+                 theCrossWord.read( fname );
+                 theCrossWord.listSuggestions( lsSugs ); });
     mb.append("File", m);
 }
 
-main()
+void cGUI::RegisterEventHandlers()
 {
-    wex::gui &fm = wex::maker::make();
-    fm.move({50, 50, 1000, 500});
-    fm.text("Crossify");
-
-    ConstructMenu(fm);
-
-    wex::editbox &wordbox = wex::maker::make<wex::editbox>(fm);
-    wordbox.move(600, 30, 300, 30);
-    wordbox.text("");
-    wex::button &bnAdd = wex::maker::make<wex::button>(fm);
-    bnAdd.move(600, 70, 50, 30);
-    bnAdd.text("ADD");
-    wex::radiobutton &bnHoriz = wex::maker::make<wex::radiobutton>(fm);
-    bnHoriz.move(660, 70, 50, 30);
-    bnHoriz.text("Horiz");
-    wex::radiobutton &bnVert = wex::maker::make<wex::radiobutton>(fm);
-    bnVert.move(740, 70, 50, 30);
-    bnVert.text("Vert");
-
-    wex::editbox &cluebox = wex::maker::make<wex::editbox>(fm);
-    cluebox.move(600, 130, 300, 30);
-    cluebox.text("");
-
-    wex::label &lbClues = wex::maker::make<wex::label>(fm);
-    lbClues.move( 550,200, 400, 350 );
-
     fm.events().draw([&](PAINTSTRUCT &ps)
                      { theCrossWord.draw(ps);
-                     lbClues.text( theCrossWord.textClues() );
-                      });
+                     lbClues.text( theCrossWord.textClues() ); });
 
     fm.events().mouseUp(
         [&]
@@ -410,8 +414,26 @@ main()
             theCrossWord.add(word);
             fm.update();
         });
-
-    // show and run
-    fm.show();
-    fm.run();
+    bnsgAdd.events().click(
+        [&]
+        {
+            cWord word;
+            word.myText = sgwordbox.text();
+            word.myClue = sgcluebox.text();
+            theCrossWord.addSuggestion(word);
+            theCrossWord.listSuggestions(lsSugs);
+        });
+    lsSugs.events().select(
+        lsSugs.id(), [this]
+        { 
+            auto& word = theCrossWord.suggestion( lsSugs.selectedIndex() );
+            word.myIndex = theCrossWord.select();
+            word.myfVertical = bnVert.isChecked();
+            theCrossWord.add(word);
+            fm.update();
+         });
+}
+main()
+{
+    cGUI theGUI;
 }
