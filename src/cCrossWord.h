@@ -33,10 +33,12 @@ public:
 
 
     cCrossWord()
-        : myDimension(9), mySelected(-1)
+        : myDimension(10), mySelected(-1), myfWords( true )
     {
     }
     void clear();
+    void clearLayout();
+    void toggleWords();
 
     void draw(PAINTSTRUCT &ps);
     std::string textClues();
@@ -61,11 +63,15 @@ public:
     int colrow2index(std::pair<int, int> colrow);
     int mouse2index(wex::sMouse m);
 
+    void autoAdd( bool myVertical = false );
+
 private:
     int xinc;
     int yinc;
     int mySelected;
     std::vector<cWord> mySuggestions;   ///< suggested words
+    std::vector<char> myFill;
+    bool myfWords;
 
     void AssignClueNumber();
 

@@ -53,6 +53,16 @@ void cCrossWord::clear()
     mySelected = -1;
 }
 
+void cCrossWord::clearLayout()
+{
+    myWord.clear();
+}
+
+void cCrossWord::toggleWords()
+{
+    myfWords = !myfWords;
+}
+
 void cCrossWord::select(int i)
 {
     mySelected = i;
@@ -89,6 +99,8 @@ void cCrossWord::AssignClueNumber()
 
 void cCrossWord::draw(PAINTSTRUCT &ps)
 {
+    myFill.resize(myDimension * myDimension, '*');
+
     wex::shapes S(ps);
     yinc = (ps.rcPaint.bottom - 40) / myDimension;
     int x1 = 20;
@@ -124,8 +136,9 @@ void cCrossWord::draw(PAINTSTRUCT &ps)
         y1 = 21 + colrow.second * yinc;
         S.rectangle({x1, y1, xinc - 1, yinc - 1});
     }
-    S.color(0x000000);
+
     S.textHeight(30);
+    S.bgcolor(0xFFFFFF);
     for (auto &w : myWord)
     {
         int inc = 1;
@@ -133,13 +146,24 @@ void cCrossWord::draw(PAINTSTRUCT &ps)
             inc = myDimension;
         for (int c = 0; c < w.myText.length(); c++)
         {
-            auto colrow = index2colrow(w.myIndex + c * inc);
-            x1 = 40 + colrow.first * xinc;
-            y1 = 30 + colrow.second * yinc;
-            S.text(w.myText.substr(c, 1), {x1, y1});
+            int letterindex = w.myIndex + c * inc;
+            myFill[letterindex] = w.myText[c];
+            auto colrow = index2colrow(letterindex);
+            x1 = colrow.first * xinc;
+            y1 = colrow.second * yinc;
+            S.color(0xFFFFFF);
+            S.rectangle({x1 + 21, y1 + 21, xinc - 1, yinc - 1});
+            if (myfWords)
+            {
+                S.color(0);
+                S.text(w.myText.substr(c, 1), {x1 + 40, y1 + 30});
+            }
         }
     }
+
     AssignClueNumber();
+    S.color(0x000000);
+    S.bgcolor(0xFFFFFF);
     S.textHeight(15);
     for (auto &w : myWord)
     {
@@ -209,7 +233,7 @@ void cCrossWord::addSuggestion(const cWord &word)
 {
     mySuggestions.push_back(word);
 }
-cWord& cCrossWord::suggestion( int i )
+cWord &cCrossWord::suggestion(int i)
 {
     return mySuggestions[i];
 }
@@ -281,6 +305,7 @@ std::string cCrossWord::textClues()
 
 void cCrossWord::listSuggestions(wex::list &lsSugs)
 {
+    lsSugs.clear();
     for (auto &w : mySuggestions)
     {
         lsSugs.add(w.myText);
@@ -298,29 +323,35 @@ private:
     wex::tabbed &tabs;
     wex::panel &plEdit;
     wex::panel &plSug;
+    wex::panel &plClues;
     wex::editbox &wordbox;
     wex::button &bnAdd;
     wex::radiobutton &bnHoriz;
     wex::radiobutton &bnVert;
     wex::editbox &cluebox;
-    wex::label &lbClues;
+
     wex::editbox &sgwordbox;
     wex::button &bnsgAdd;
     wex::editbox &sgcluebox;
     wex::list &lsSugs;
+    wex::label &lbCluesAcross;
+    wex::label &lbCluesDown;
 
     void ConstructMenu();
     void RegisterEventHandlers();
 };
 
 cGUI::cGUI()
-    : fm(wex::maker::make()), tabs(wex::maker::make<wex::tabbed>(fm)), plEdit(wex::maker::make<wex::panel>(tabs)), plSug(wex::maker::make<wex::panel>(tabs))
+    : fm(wex::maker::make()),
+      tabs(wex::maker::make<wex::tabbed>(fm)),
+      plEdit(wex::maker::make<wex::panel>(tabs)),
+      plSug(wex::maker::make<wex::panel>(tabs)),
+      plClues(wex::maker::make<wex::panel>(tabs)),
 
-      ,
-      wordbox(wex::maker::make<wex::editbox>(plEdit)), bnAdd(wex::maker::make<wex::button>(plEdit)), bnHoriz(wex::maker::make<wex::radiobutton>(plEdit)), bnVert(wex::maker::make<wex::radiobutton>(plEdit)), cluebox(wex::maker::make<wex::editbox>(plEdit)), lbClues(wex::maker::make<wex::label>(plEdit))
+      wordbox(wex::maker::make<wex::editbox>(plEdit)), bnAdd(wex::maker::make<wex::button>(plEdit)), bnHoriz(wex::maker::make<wex::radiobutton>(plEdit)), bnVert(wex::maker::make<wex::radiobutton>(plEdit)), cluebox(wex::maker::make<wex::editbox>(plEdit)),
 
-      ,
-      sgwordbox(wex::maker::make<wex::editbox>(plSug)), bnsgAdd(wex::maker::make<wex::button>(plSug)), sgcluebox(wex::maker::make<wex::editbox>(plSug)), lsSugs(wex::maker::make<wex::list>(plSug))
+      sgwordbox(wex::maker::make<wex::editbox>(plSug)),
+      bnsgAdd(wex::maker::make<wex::button>(plSug)), sgcluebox(wex::maker::make<wex::editbox>(plSug)), lsSugs(wex::maker::make<wex::list>(plSug)), lbCluesAcross(wex::maker::make<wex::label>(plClues)), lbCluesDown(wex::maker::make<wex::label>(plClues))
 {
     fm.move({50, 50, 1000, 500});
     fm.text("Crossify");
@@ -328,9 +359,10 @@ cGUI::cGUI()
     ConstructMenu();
 
     tabs.move(500, 20, 500, 450);
-    tabs.tabWidth(200);
+    tabs.tabWidth(150);
     tabs.add("EDIT", plEdit);
     tabs.add("SUGGESTIONS", plSug);
+    tabs.add("CLUES", plClues);
 
     wordbox.move(100, 30, 300, 30);
     wordbox.text("");
@@ -342,7 +374,6 @@ cGUI::cGUI()
     bnVert.text("Vert");
     cluebox.move(100, 130, 300, 30);
     cluebox.text("");
-    lbClues.move(50, 200, 400, 350);
 
     sgwordbox.move(100, 30, 300, 30);
     sgwordbox.text("");
@@ -351,6 +382,9 @@ cGUI::cGUI()
     sgcluebox.move(100, 130, 300, 30);
     sgcluebox.text("");
     lsSugs.move(50, 200, 400, 300);
+
+    lbCluesAcross.move(0, 50, 450, 400);
+    lbCluesDown.move(510, 50, 450, 400);
 
     RegisterEventHandlers();
 
@@ -366,6 +400,12 @@ void cGUI::ConstructMenu()
     wex::menu m(fm);
     m.append("New", [&](const std::string &title)
              { theCrossWord.clear();
+             fm.update(); });
+    m.append("Clear", [&](const std::string &title)
+             { theCrossWord.clearLayout();
+             fm.update(); });
+    m.append("Words", [&](const std::string &title)
+             { theCrossWord.toggleWords();
              fm.update(); });
     m.append("Save", [&](const std::string &title)
              { 
@@ -385,7 +425,8 @@ void cGUI::RegisterEventHandlers()
 {
     fm.events().draw([&](PAINTSTRUCT &ps)
                      { theCrossWord.draw(ps);
-                     lbClues.text( theCrossWord.textClues() ); });
+                     lbCluesAcross.text( theCrossWord.textClues() );
+                     lbCluesDown.text( theCrossWord.textClues() ); });
 
     fm.events().mouseUp(
         [&]
@@ -417,6 +458,12 @@ void cGUI::RegisterEventHandlers()
     bnsgAdd.events().click(
         [&]
         {
+            if (sgwordbox.text().empty())
+            {
+                theCrossWord.autoAdd(bnVert.isChecked());
+                fm.update();
+                return;
+            }
             cWord word;
             word.myText = sgwordbox.text();
             word.myClue = sgcluebox.text();
@@ -430,8 +477,24 @@ void cGUI::RegisterEventHandlers()
             word.myIndex = theCrossWord.select();
             word.myfVertical = bnVert.isChecked();
             theCrossWord.add(word);
-            fm.update();
-         });
+            fm.update(); });
+}
+void cCrossWord::autoAdd(bool fVertical)
+{
+    for (auto &w : mySuggestions)
+    {
+        if (!findWord(w.myIndex).myText.empty())
+            continue;
+        if (!findWord(w.myIndex, true).myText.empty())
+            continue;
+        if (myFill[mySelected] != '*')
+            if (myFill[mySelected] != w.myText[0])
+                continue;
+        w.myfVertical = fVertical;
+        w.myIndex = mySelected;
+        add(w);
+        break;
+    }
 }
 main()
 {
