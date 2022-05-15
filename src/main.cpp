@@ -195,15 +195,15 @@ int cCrossWord::colrow2index(std::pair<int, int> colrow)
 {
     return colrow.second * theCrossWord.myDimension + colrow.first;
 }
-int cCrossWord::mouse2index(wex::sMouse m)
+int cCrossWord::pixel2index(int x, int y)
 {
-    if (m.x > 20 + myDimension * xinc ||
-        m.y > 20 * myDimension * yinc)
+    if (x > 20 + myDimension * xinc ||
+        y > 20 * myDimension * yinc)
         return -1;
     return colrow2index(
         std::make_pair(
-            (m.x - 20) / xinc,
-            (m.y - 20) / yinc));
+            (x - 20) / xinc,
+            (y - 20) / yinc));
 }
 
 void cCrossWord::add(const cWord &word)
@@ -295,7 +295,7 @@ std::string cCrossWord::textClues()
             continue;
         mp.insert(std::make_pair(w.myClueNo, w.myClue));
     }
-    ss << "Down\n";
+    ss << "\nDown\n";
     for (auto it : mp)
     {
         ss << it.first << " " << it.second << "\n";
@@ -325,10 +325,12 @@ private:
     wex::panel &plSug;
     wex::panel &plClues;
     wex::editbox &wordbox;
+    wex::label &wordLabel;
     wex::button &bnAdd;
     wex::radiobutton &bnHoriz;
     wex::radiobutton &bnVert;
     wex::editbox &cluebox;
+    wex::label &clueLabel;
 
     wex::editbox &sgwordbox;
     wex::button &bnsgAdd;
@@ -347,8 +349,13 @@ cGUI::cGUI()
       plEdit(wex::maker::make<wex::panel>(tabs)),
       plSug(wex::maker::make<wex::panel>(tabs)),
       plClues(wex::maker::make<wex::panel>(tabs)),
-
-      wordbox(wex::maker::make<wex::editbox>(plEdit)), bnAdd(wex::maker::make<wex::button>(plEdit)), bnHoriz(wex::maker::make<wex::radiobutton>(plEdit)), bnVert(wex::maker::make<wex::radiobutton>(plEdit)), cluebox(wex::maker::make<wex::editbox>(plEdit)),
+      wordLabel(wex::maker::make<wex::label>(plEdit)),
+      wordbox(wex::maker::make<wex::editbox>(plEdit)),
+       bnAdd(wex::maker::make<wex::button>(plEdit)),
+        bnHoriz(wex::maker::make<wex::radiobutton>(plEdit)),
+         bnVert(wex::maker::make<wex::radiobutton>(plEdit)),
+         clueLabel(wex::maker::make<wex::label>(plEdit)),
+          cluebox(wex::maker::make<wex::editbox>(plEdit)),
 
       sgwordbox(wex::maker::make<wex::editbox>(plSug)),
       bnsgAdd(wex::maker::make<wex::button>(plSug)), sgcluebox(wex::maker::make<wex::editbox>(plSug)), lsSugs(wex::maker::make<wex::list>(plSug)), lbCluesAcross(wex::maker::make<wex::label>(plClues)), lbCluesDown(wex::maker::make<wex::label>(plClues))
@@ -358,12 +365,14 @@ cGUI::cGUI()
 
     ConstructMenu();
 
-    tabs.move(500, 20, 500, 450);
+    tabs.move(450, 20, 500, 450);
     tabs.tabWidth(150);
     tabs.add("EDIT", plEdit);
-    tabs.add("SUGGESTIONS", plSug);
+    //tabs.add("SUGGESTIONS", plSug);
     tabs.add("CLUES", plClues);
 
+    wordLabel.move(0,35, 50, 30 );
+    wordLabel.text("Word");
     wordbox.move(100, 30, 300, 30);
     wordbox.text("");
     bnAdd.move(100, 70, 50, 30);
@@ -372,7 +381,9 @@ cGUI::cGUI()
     bnHoriz.text("Horiz");
     bnVert.move(240, 70, 50, 30);
     bnVert.text("Vert");
-    cluebox.move(100, 130, 300, 30);
+    clueLabel.move(0,135, 30, 30 );
+    clueLabel.text("Clue");
+    cluebox.move(50, 130, 400, 30);
     cluebox.text("");
 
     sgwordbox.move(100, 30, 300, 30);
@@ -431,13 +442,18 @@ void cGUI::RegisterEventHandlers()
     fm.events().mouseUp(
         [&]
         {
+            // select grid cell under mouse cursor
+            auto m = fm.getMouseStatus();
             theCrossWord.select(
-                theCrossWord.mouse2index(fm.getMouseStatus()));
+                theCrossWord.pixel2index(m.x,m.y));
+            
+            // if clicked first letter of a word
             cWord &w = theCrossWord.findWord(
                 theCrossWord.select(),
                 bnVert.isChecked());
             if (!w.myText.empty())
             {
+                // load word into editing boxes
                 wordbox.text(w.myText);
                 cluebox.text(w.myClue);
             }

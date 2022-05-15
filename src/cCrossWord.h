@@ -61,7 +61,7 @@ public:
 
     std::pair<int, int> index2colrow(int i);
     int colrow2index(std::pair<int, int> colrow);
-    int mouse2index(wex::sMouse m);
+    int pixel2index(int x, int y);
 
     void autoAdd( bool myVertical = false );
 

@@ -10,7 +10,7 @@ INCS = -I./include \
 
 LIBS = \
 	-lgdiplus -lgdi32 -lcomdlg32 -lstdc++fs \
-	#-mwindows
+	-mwindows
 
 static_link_flags = -static-libstdc++ -static-libgcc -static
 
@@ -18,7 +18,7 @@ static_link_flags = -static-libstdc++ -static-libgcc -static
 ODIR = ./.vscode/obj
 RDIR = ../ravencode/pub/src
 
-OPT = -g
+OPT = -O2
 CCflags = -std=c++17 $(OPT) -D_mingw_
 
 # sources
@@ -33,7 +33,7 @@ $(ODIR)/%.o: %.cpp
 
 bats: $(OBJ)
 	g++ $(OPT) \
-	-o bin/bats.exe $^  \
+	-o bin/crossify.exe $^  \
 	$(static_link_flags) $(LIBS)
 
 .PHONY: clean
