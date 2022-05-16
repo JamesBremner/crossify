@@ -15,12 +15,19 @@ public:
         const std::string &line,
         const std::string &clueline);
 
+    std::string dump()
+    {
+        std::stringstream ss;
+        ss << myIndex << " "
+           << myfVertical << " "
+           << myText << "\n"
+           << myClue << "\n";
+        return ss.str();
+    }
+
     void save(std::ofstream &f)
     {
-        f << myIndex << " "
-          << myfVertical << " "
-          << myText << "\n"
-          << myClue << "\n";
+        f << dump();
     }
 };
 
@@ -28,12 +35,10 @@ class cCrossWord
 {
 public:
     int myDimension;
-    std::vector<int> myBlack;
-    std::vector<cWord> myWord;          ///< words placed in crossword
-
+    std::vector<cWord> myWord; ///< words placed in crossword
 
     cCrossWord()
-        : myDimension(10), mySelected(-1), myfWords( true )
+        : myDimension(10), mySelected(-1), myfWords(true)
     {
     }
     void clear();
@@ -42,11 +47,11 @@ public:
 
     void draw(PAINTSTRUCT &ps);
     std::string textClues();
-    void listSuggestions( wex::list& lsSugs );
+    void listSuggestions(wex::list &lsSugs);
 
-    void add(const cWord &word);
+    bool add(cWord &word);
     void addSuggestion(const cWord &word);
-    cWord& suggestion( int i );
+    cWord &suggestion(int i);
 
     void select(int i);
     int select() const
@@ -63,16 +68,16 @@ public:
     int colrow2index(std::pair<int, int> colrow);
     int pixel2index(int x, int y);
 
-    void autoAdd( bool myVertical = false );
+    void autoAdd(bool myVertical = false);
 
 private:
     int xinc;
     int yinc;
     int mySelected;
-    std::vector<cWord> mySuggestions;   ///< suggested words
+    std::vector<cWord> mySuggestions; ///< suggested words
     std::vector<char> myFill;
     bool myfWords;
 
     void AssignClueNumber();
-
+    bool check( const cWord& word );
 };

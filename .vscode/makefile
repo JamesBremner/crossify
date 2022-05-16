@@ -23,7 +23,7 @@ CCflags = -std=c++17 $(OPT) -D_mingw_
 
 # sources
 OBJ = \
-	$(ODIR)/main.o $(ODIR)/cGraph.o 
+	$(ODIR)/main.o 
 
 ### COMPILE
 
