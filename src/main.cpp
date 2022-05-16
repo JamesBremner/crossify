@@ -45,6 +45,21 @@ cWord::cWord(
     myClue = clueline;
 }
 
+std::vector<int> cWord::occupy(int dim) const
+{
+    std::vector<int> vo;
+    int start = myIndex;
+    int inc = 1;
+    if (myfVertical)
+        inc = dim;
+    for (int l = 0; l < myText.length(); l++)
+    {
+        vo.push_back(start);
+        start += inc;
+    }
+    return vo;
+}
+
 void cCrossWord::clear()
 {
     myWord.clear();
@@ -199,9 +214,9 @@ int cCrossWord::pixel2index(int x, int y)
 
 bool cCrossWord::add(cWord &word)
 {
-    if( word.myIndex < 0 )
+    if (word.myIndex < 0)
         word.myIndex = 0;
-    if( ! check( word ))
+    if (!check(word))
         return false;
     auto &oldword = findWord(word.myIndex, word.myfVertical);
     if (oldword.myText.empty())
@@ -216,31 +231,23 @@ bool cCrossWord::add(cWord &word)
     return true;
 }
 
-bool cCrossWord::check( const cWord& word )
+bool cCrossWord::check(const cWord &word)
 {
-    std::vector< char > occupy( myDimension * myDimension, ' ' );
-    for( cWord & w : myWord )
+    std::vector<char> occupy(myDimension * myDimension, ' ');
+    for (cWord &w : myWord)
     {
-        int start = w.myIndex;
-        int inc = 1;
-        if( w.myfVertical )
-            inc = myDimension;
-        for( int l = 0; l < w.myText.length(); l++ )
-        {
-            occupy[start] = w.myText[l];
-            start += inc;
-        }
+        auto vo = w.occupy(myDimension);
+        for (int l = 0; l < w.myText.length(); l++)
+            occupy[vo[l]] = w.myText[l];
     }
 
-        int start = word.myIndex;
-        int inc = 1;
-        if( word.myfVertical )
-            inc = myDimension;
-        for( int l = 0; l < word.myText.length(); l++ ) {
-            if( occupy[start] != ' ' )
-                if( occupy[start] != word.myText[l] )
-                    return false;
-            start += inc;
+    auto vo = word.occupy(myDimension);
+
+    for (int l = 0; l < word.myText.length(); l++)
+    {
+        if (occupy[vo[l]] != ' ')
+            if (occupy[vo[l]] != word.myText[l])
+                return false;
     }
     return true;
 }
@@ -484,8 +491,9 @@ void cGUI::RegisterEventHandlers()
             word.myIndex = theCrossWord.select();
             word.myfVertical = bnVert.isChecked();
             word.myClue = cluebox.text();
-            if( ! theCrossWord.add(word) ) {
-                wex::msgbox mb("New word does not fit with pervous words");
+            if (!theCrossWord.add(word))
+            {
+                wex::msgbox mb("New word does not fit with prevous words");
             }
             fm.update();
         });

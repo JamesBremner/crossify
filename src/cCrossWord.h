@@ -29,6 +29,8 @@ public:
     {
         f << dump();
     }
+    /// get indices of squares occupied
+    std::vector<int> occupy(int dim ) const;
 };
 
 class cCrossWord
